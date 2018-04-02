@@ -111,6 +111,8 @@ static bool SortPairDoubleByFirst(const std::pair<double,double> & left, const s
     <li>Reporting the peak groups and the chromatograms</li>
   </ul>
 
+  The overall execution flow for this tool is described in the TOPPOpenSwathWorkflow documentation.
+
   See below or have a look at the INI file (via "OpenSwathWorkflow -write_ini myini.ini") for available parameters and more functionality.
 
   <h3>Input: SWATH maps and transition list </h3>
@@ -375,6 +377,10 @@ static bool SortPairDoubleByFirst(const std::pair<double,double> & left, const s
   </table>
 </CENTER>
 
+  <h3>Execution flow:</h3>
+
+  The overall execution flow for this tool is described in the TOPPOpenSwathWorkflow documentation.
+
   <B>The command line parameters of this tool are:</B>
   @verbinclude UTILS_OpenSwathWorkflow.cli
   <B>INI file documentation of this tool:</B>
@@ -382,8 +388,22 @@ static bool SortPairDoubleByFirst(const std::pair<double,double> & left, const s
 
 */
 
-// We do not want this class to show up in the docu:
-/// @cond TOPPCLASSES
+/** @brief Extended documentation on OpenSwath
+
+  The overall execution flow for this tool is as follows:
+
+    - Parameter validation
+    - Transition loading: loads input transitions into OpenSwath::LightTargetedExperiment
+    - SWATH file loading:
+      - Load SWATH files (see loadSwathFiles())
+      - Annotate SWATH-files with user-defined windows (see OpenMS::SwathWindowLoader::annotateSwathMapsFromFile() )
+      - Sanity check: there should be no overlap between the windows:
+    - Perform RT and m/z calibration (see performCalibration() and OpenMS::OpenSwathRetentionTimeNormalization)
+    - Set up chromatogram file output
+    - Set up peakgroup file output
+    - Extract and score (see OpenMS::OpenSwathWorkflow or OpenMS::OpenSwathWorkflowSonar)
+
+*/
 class TOPPOpenSwathWorkflow
   : public TOPPBase
 {
@@ -571,6 +591,22 @@ protected:
     }
   }
 
+  /** @brief Loads SWATH files into data structures
+
+    Loads SWATH files into the provided OpenSwath::SwathMap data structures. It
+    uses the SwathFile class to load files from either mzML, mzXML or SqMass.
+    The files will be either loaded into memory or cached to disk (depending on
+    the readoptions parameter).
+
+    @param file_list One or more input files (if more than one file is
+    provided, then it is assumed these files have been split with each file
+    representing one SWATH map)
+    @param split_file_input Indicating the input file is a single SWATH map
+    @param tmp Temporary directory (for caching files)
+    @param readoptions How to read files (in memory, cached ... )
+    @param exp_meta Output for meta data
+    @param swath_maps Output for raw data
+  */
   void loadSwathFiles(StringList& file_list, bool split_file, String tmp, String readoptions,
     boost::shared_ptr<ExperimentalSettings > & exp_meta,
     std::vector< OpenSwath::SwathMap > & swath_maps)
@@ -609,11 +645,14 @@ protected:
   }
 
   /**
-   * @brief Load the retention time transformation file
+   * @brief Perform retention time and m/z calibration
    *
    * This function will create the retention time transformation either by
    * loading a provided .trafoXML file or determine it from the data itself by
-   * extracting the transitions specified in the irt_tr_file TraML file.
+   * extracting the transitions specified in the irt_tr_file TraML file. It
+   * will also perform the m/z calibration.
+   *
+   * @note RT and m/z calibration are performed by OpenMS::OpenSwathCalibrationWorkflow::performRTNormalization
    *
    * @param trafo_in Input trafoXML file (if not empty, transformation will be
    *                 loaded from this file)
@@ -628,9 +667,12 @@ protected:
    * @param irt_detection_param Parameter set for the detection of the iRTs (outlier detection, peptides per bin etc)
    * @param mz_correction_function If correction in m/z is desired, which function should be used
    * @param debug_level Debug level (writes out the RT normalization chromatograms if larger than 1)
+   * @param sonar Whether the data is SONAR data
+   * @param load_into_memory Whether to cache the current SWATH map in memory
+   * @param debug_output Output filename for trafoXML file
    *
    */
-  TransformationDescription loadTrafoFile(String trafo_in, String irt_tr_file,
+  TransformationDescription performCalibration(String trafo_in, String irt_tr_file,
     std::vector< OpenSwath::SwathMap > & swath_maps, double min_rsq, double min_coverage,
     const Param& feature_finder_param, const ChromExtractParams& cp_irt,
     const Param& irt_detection_param, const String & mz_correction_function,
@@ -658,7 +700,7 @@ protected:
       traml.load(irt_tr_file, irt_transitions);
 
       // perform extraction
-      OpenSwathRetentionTimeNormalization wf;
+      OpenSwathCalibrationWorkflow wf;
       wf.setLogType(log_type_);
       trafo_rtnorm = wf.performRTNormalization(irt_transitions, swath_maps, min_rsq, min_coverage,
           feature_finder_param, cp_irt, irt_detection_param, mz_correction_function, debug_level, sonar, load_into_memory);
@@ -935,10 +977,10 @@ protected:
     }
 
     ///////////////////////////////////
-    // Get the transformation information (using iRT peptides)
+    // Perform retention time and m/z calibration (using iRT peptides)
     ///////////////////////////////////
     String debug_output = debug_params.getValue("irt_trafo");
-    TransformationDescription trafo_rtnorm = loadTrafoFile(trafo_in,
+    TransformationDescription trafo_rtnorm = performCalibration(trafo_in,
         irt_tr_file, swath_maps, min_rsq, min_coverage, feature_finder_param,
         cp_irt, irt_detection_param, mz_correction_function, debug_level,
         sonar, load_into_memory, debug_output);
@@ -989,13 +1031,15 @@ protected:
     }
 
     ///////////////////////////////////
-    // Extract and score
+    // Set up peakgroup file output
     ///////////////////////////////////
     FeatureMap out_featureFile;
-
     OpenSwathTSVWriter tsvwriter(out_tsv, file_list[0], use_ms1_traces, sonar, enable_uis_scoring); // only active if filename not empty
     OpenSwathOSWWriter oswwriter(out_osw, file_list[0], use_ms1_traces, sonar, enable_uis_scoring); // only active if filename not empty
 
+    ///////////////////////////////////
+    // Extract and score
+    ///////////////////////////////////
     if (sonar)
     {
       OpenSwathWorkflowSonar wf(use_ms1_traces);

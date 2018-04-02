@@ -69,13 +69,15 @@ public:
      * @param transition_group_map A MRMFeatureFinderScoring result map
      * @param swath_maps The raw swath maps from the current run
      * @param corr_type Regression type, one of "none", "unweighted_regression", "weighted_regression", "quadratic_regression", "quadratic_regression_delta_ppm"
+     * @param mz_extraction_window Extraction window for calibration in Da or ppm (e.g. 50ppm means extraction +/- 25ppm)
+     * @param ppm Whether the extraction window is given in ppm or Da
      *
      *
      */
     static void correctMZ(OpenMS::MRMFeatureFinderScoring::TransitionGroupMapType & transition_group_map,
                           std::vector< OpenSwath::SwathMap > & swath_maps,
                           std::string corr_type,
-                          double mz_extr_window = 0.05, bool ppm = false);
+                          double mz_extraction_window = 0.05, bool ppm = false);
 
   };
 }
