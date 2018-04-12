@@ -516,7 +516,16 @@ namespace OpenMS
             std::vector< ChromatogramExtractor::ExtractionCoordinates > coordinates;
 
             // Step 2.2: prepare the extraction coordinates and extract chromatograms
+            
+            // prepareExtractionCoordinates_ will provide coordinates for all input transitions. 
+            // chrom_list contains list of pointers for empty chromatograms. coordinates is also an empty vector of coordinates for each chromatogram.
+            // transition_exp_used contains peptides' name. trafo_inverse has mapping from iRT to seconds and apply it to each coordinate. cp has further params for extracting chromatogram.
+            // For each entry in transition_exp_used, there will be multiple(equal to number of fragment ions) chromatograms in chrom_list and coordinates.
+            // For example, this function will fill one coordinate as : Fragment ion m/z = 400 Th, Precursor m/z = 785 Th, RT_start = (1800 - 300)s, RT_end = (1800 + 300)s, id.
             prepareExtractionCoordinates_(chrom_list, coordinates, transition_exp_used, false, trafo_inverse, cp);
+            
+            // extractChromatograms() populates chrom_list with extracted chromatograms from current_swath_map. It uses already calculated coordinates.
+            // While extracting chromatogram for a coordinate, it also merges signals in the m/z window (default = +/- 0.025) using extraction_function.
             extractor.extractChromatograms(current_swath_map, chrom_list, coordinates, cp.mz_extraction_window,
                 cp.ppm, cp.extraction_function);
 
@@ -532,6 +541,7 @@ namespace OpenMS
             OpenSwath::SwathMap dummy_map (swath_maps[i]);
             dummy_map.sptr = current_swath_map;
             dummy_maps.push_back(dummy_map);
+            // chromatogram_ptr is a pointer to all chromatograms of current batch. trafo has mapping from second to iRT.
             scoreAllChromatograms(chromatogram_ptr, ms1_chromatograms, dummy_maps, transition_exp_used,
                 feature_finder_param, trafo, cp.rt_extraction_window, featureFile, tsv_writer, osw_writer);
 
@@ -681,13 +691,14 @@ namespace OpenMS
   {
     TransformationDescription trafo_inv = trafo;
     trafo_inv.invert();
+    // trafo_inv now has mapping from iRT to second.
 
-    MRMFeatureFinderScoring featureFinder;
+    MRMFeatureFinderScoring featureFinder; //MRMFeatureFinderScoring class is used to find and score peaks of transitions that co-elute.
 
     // To ensure multi-threading safe access to the individual spectra, we
     // need to use a light clone of the spectrum access (if multiple threads
     // share a single filestream and call seek on it, chaos will ensue).
-    if (use_ms1_traces_)
+    if (use_ms1_traces_) // scorer can improve scoring by using ms1 chromatograms.
     {
       OpenSwath::SpectrumAccessPtr threadsafe_ms1 = ms1_map_->lightClone();
       featureFinder.setMS1Map( threadsafe_ms1 );
@@ -891,6 +902,7 @@ namespace OpenMS
     }
   }
 
+
   void OpenSwathWorkflow::prepareExtractionCoordinates_(std::vector< OpenSwath::ChromatogramPtr > & chrom_list,
                                                         std::vector< ChromatogramExtractorAlgorithm::ExtractionCoordinates > & coordinates, 
                                                         const OpenSwath::LightTargetedExperiment & transition_exp_used, 
@@ -908,8 +920,8 @@ namespace OpenMS
       // Then correct the start/end positions and add the extra_rt_extract parameter
       prepare_coordinates_sub(chrom_list, coordinates, transition_exp_used, 0.0, ms1);
       for (std::vector< ChromatogramExtractor::ExtractionCoordinates >::iterator it = coordinates.begin(); it != coordinates.end(); ++it)
-      {
-        it->rt_start = trafo_inverse.apply(it->rt_start) - (cp.rt_extraction_window + cp.extra_rt_extract)/ 2.0;
+      {// iterator parses through all coordinates obtained from prepare_coordinates_sub() and creates a retention time window (e.g. +/- 300 s), centered at RT, for extraction.
+        it->rt_start = trafo_inverse.apply(it->rt_start) - (cp.rt_extraction_window + cp.extra_rt_extract)/ 2.0; // trafo_inverse has mapping from iRT to seconds.
         it->rt_end = trafo_inverse.apply(it->rt_end) + (cp.rt_extraction_window + cp.extra_rt_extract)/ 2.0;
       }
     }

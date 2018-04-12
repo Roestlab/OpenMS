@@ -339,7 +339,7 @@ namespace OpenMS
      *
      * This will take the targeted experiment and prepare extraction
      * coordinates (either MS1 or MS2) for extraction by the
-     * ChromatogramExtractor.
+     * ChromatogramExtractor. It also sorts coordinates based on m/z value.
      *
      * @param output_chromatograms Output of chromatograms (will be filled with empty chromatogram ptrs)
      * @param coordinates Output of extraction coordinates (will be filled with matching extraction coordinates)
