@@ -421,16 +421,21 @@ namespace OpenMS
         } // FWHM
 
         // compute the intensity-weighted mean ion mobility
+        PeakBoundary peak_boundary;
+        peak_boundary.im_average = -1;
         if (has_im)
         {
           double total_intensity(0);
           for (const auto& t : peak_raw_data) {total_intensity += t.second;}
           output.getFloatDataArrays()[out_im_index].push_back(weighted_im / total_intensity);
+          peak_boundary.im_average = weighted_im / total_intensity;
+          // TODO: this may misrepresent what is going on, maybe we report im
+          // using the PeakBoundary object and the user has to specifically
+          // request ion mobility averages?
         }
 
         // save picked peak into output spectrum
         typename ContainerType::PeakType peak;
-        PeakBoundary peak_boundary;
         peak.setMZ(max_peak_mz);
         peak.setIntensity(max_peak_int);
         peak_boundary.mz_min = input[left_boundary].getMZ();

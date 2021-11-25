@@ -92,8 +92,9 @@ public:
     /// structure for peak boundaries
     struct PeakBoundary
     {
-        double mz_min;
-        double mz_max;
+      double mz_min;
+      double mz_max;
+      double im_average;
     };
 
     /**
