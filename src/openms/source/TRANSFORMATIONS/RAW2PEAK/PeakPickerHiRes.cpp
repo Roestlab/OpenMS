@@ -261,23 +261,18 @@ namespace OpenMS
         double weighted_im = 0;
 
         peak_raw_data[central_peak_mz] = central_peak_int;
-        peak_raw_data[left_neighbor_mz] = left_neighbor_int;
-        peak_raw_data[right_neighbor_mz] = right_neighbor_int;
-
         if (has_im)
         {
           weighted_im += input.getFloatDataArrays()[im_data_index][i] * input[i].getIntensity();
-          weighted_im += input.getFloatDataArrays()[im_data_index][i-1] * input[i-1].getIntensity();
-          weighted_im += input.getFloatDataArrays()[im_data_index][i+1] * input[i+1].getIntensity();
         }
 
         // peak core found, now extend it
         // to the left
-        Size k = 2;
+        Size k = 1;
 
         bool previous_zero_left(false); // no need to extend peak if previous intensity was zero
         Size missing_left(0);
-        Size left_boundary(i - 1); // index of the left boundary for the spline interpolation
+        Size left_boundary(i); // index of the left boundary for the spline interpolation
 
         while ((k <= i) && // prevent underflow
           (i - k + 1 > 0) && 
@@ -317,11 +312,11 @@ namespace OpenMS
         }
 
         // to the right
-        k = 2;
+        k = 1;
 
         bool previous_zero_right(false); // no need to extend peak if previous intensity was zero
         Size missing_right(0);
-        Size right_boundary(i+1); // index of the right boundary for the spline interpolation
+        Size right_boundary(i); // index of the right boundary for the spline interpolation
 
         while ((i + k < input.size()) && 
           !previous_zero_right && 
@@ -357,6 +352,19 @@ namespace OpenMS
           previous_zero_right = (input[i + k].getIntensity() == 0);
           right_boundary = i + k;
           ++k;
+        }
+
+        // Fix up spline for the special case of a leading flank peak, we
+        // simply "mirror" the peak on the other side
+        if (right_boundary == i)
+        {
+          right_neighbor_mz = central_peak_mz + (central_peak_mz - left_neighbor_mz);
+          peak_raw_data[right_neighbor_mz] = left_neighbor_int;
+        }
+        if (left_boundary == i)
+        {
+          left_neighbor_mz = central_peak_mz - (right_neighbor_mz - central_peak_mz);
+          peak_raw_data[left_neighbor_mz] = right_neighbor_int;
         }
 
         // skip if the minimal number of 3 points for fitting is not reached
