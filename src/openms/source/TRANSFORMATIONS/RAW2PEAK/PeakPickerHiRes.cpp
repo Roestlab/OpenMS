@@ -217,6 +217,16 @@ namespace OpenMS
         ((left_to_central < spacing_difference_ * min_spacing) &&
          (central_to_right < spacing_difference_ * min_spacing)));
 
+      // special case (timsTOF data): peaks that only have a leading flank on one side and a large spacing on the other side
+      if (check_spacings && 
+          (central_to_right >= spacing_difference_ * min_spacing && 
+          central_peak_int > left_neighbor_int) || 
+          (left_to_central >= spacing_difference_ * min_spacing && 
+           central_peak_int > right_neighbor_int))
+      {
+        spacing_check = true; max_int_check = true;
+      }
+
       // look for peak cores meeting MZ and intensity/SNT criteria
       if (max_int_check && sn_check && spacing_check)
       {
