@@ -42,6 +42,7 @@
 #include <OpenMS/MATH/MISC/CubicSpline2d.h>
 #include <OpenMS/KERNEL/SpectrumHelper.h>
 
+// #define PPHIRES_DEBUG
 
 using namespace std;
 
@@ -217,6 +218,12 @@ namespace OpenMS
         ((left_to_central < spacing_difference_ * min_spacing) &&
          (central_to_right < spacing_difference_ * min_spacing)));
 
+#ifdef PPHIRES_DEBUG
+      std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+      std::cout << " Looking at peak " << i << " " << input[i] << std::endl;
+      std::cout << " Checking " << max_int_check << sn_check << spacing_check << std::endl;
+#endif
+
       // special case (timsTOF data): peaks that only have a leading flank on one side and a large spacing on the other side
       if (check_spacings &&
           ((central_to_right >= spacing_difference_ * min_spacing &&
@@ -256,6 +263,10 @@ namespace OpenMS
           ++i;
           continue;
         }
+
+#ifdef PPHIRES_DEBUG
+      std::cout << "  => Creating picked peak from seed. " << std::endl;
+#endif
 
         std::map<double, double> peak_raw_data;
         double weighted_im = 0;
@@ -309,6 +320,9 @@ namespace OpenMS
           previous_zero_left = (input[i - k].getIntensity() == 0);
           left_boundary = i - k;
           ++k;
+#ifdef PPHIRES_DEBUG
+      std::cout << "  .. extended to the left: " << left_boundary << " : " << input[left_boundary] << std::endl;
+#endif
         }
 
         // to the right
@@ -352,6 +366,9 @@ namespace OpenMS
           previous_zero_right = (input[i + k].getIntensity() == 0);
           right_boundary = i + k;
           ++k;
+#ifdef PPHIRES_DEBUG
+      std::cout << "  .. extended to the right: " << right_boundary << " : " << input[right_boundary] << std::endl;
+#endif
         }
 
         // Fix up spline for the special case of a leading flank peak, we
@@ -464,6 +481,9 @@ namespace OpenMS
         peak_boundary.mz_min = input[left_boundary].getMZ();
         peak_boundary.mz_max = input[right_boundary].getMZ();
         output.push_back(peak);
+#ifdef PPHIRES_DEBUG
+      std::cout << "  => Created peak: " << peak << std::endl;
+#endif
 
         boundaries.push_back(peak_boundary);
 
