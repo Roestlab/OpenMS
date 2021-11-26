@@ -156,6 +156,55 @@ START_SECTION((template <typename PeakType> void pick(const MSSpectrum& input, M
     TEST_REAL_SIMILAR(output.getFloatDataArrays()[0][0], 135.1852) 
   }
 
+  // test data with a single flank only
+  {
+    PeakPickerHiRes pp_hires;
+    Param param;
+    param.setValue("signal_to_noise", 0.0);
+    pp_hires.setParameters(param);
+
+    MSSpectrum input, output;
+    input.emplace_back(100.0, 200);
+    input.emplace_back(100.01, 250);
+    input.emplace_back(100.02, 450);
+    input.emplace_back(101.03, 250);
+    input.emplace_back(101.04, 200);
+    pp_hires.pick(input, output);
+    TEST_EQUAL(output.size(), 1)
+    TEST_REAL_SIMILAR(output[0].getIntensity(), 450.807) // this introduces a small error due to the "mirroring"
+    TEST_REAL_SIMILAR(output[0].getMZ(), 100.02)
+
+    input.clear(true);
+    input.emplace_back(99.0, 200);
+    input.emplace_back(99.01, 250);
+    input.emplace_back(100.02, 450);
+    input.emplace_back(100.03, 250);
+    input.emplace_back(100.04, 200);
+    pp_hires.pick(input, output);
+    TEST_EQUAL(output.size(), 1)
+    TEST_REAL_SIMILAR(output[0].getIntensity(), 450.807) // this introduces a small error due to the "mirroring"
+    TEST_REAL_SIMILAR(output[0].getMZ(), 100.02)
+  }
+
+  // degenerate case, should not produce a peak
+  {
+    PeakPickerHiRes pp_hires;
+    Param param;
+    param.setValue("signal_to_noise", 0.0);
+    pp_hires.setParameters(param);
+
+    MSSpectrum input, output;
+    input.emplace_back(99.0, 200);
+    input.emplace_back(99.01, 250);
+    input.emplace_back(100.02, 450);
+    input.emplace_back(101.03, 250);
+    input.emplace_back(101.04, 200);
+    pp_hires.pick(input, output);
+    TEST_EQUAL(output.size(), 1)
+    TEST_REAL_SIMILAR(output[0].getIntensity(), 450.807) // this introduces a small error due to the "mirroring"
+    TEST_REAL_SIMILAR(output[0].getMZ(), 100.02)
+  }
+
   // Test on real data
   {
     MSSpectrum tmp_spec;
