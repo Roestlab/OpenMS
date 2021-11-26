@@ -205,15 +205,20 @@ namespace OpenMS
         act_snt_r1 = snt.getSignalToNoise(i + 1);
       }
 
+      bool max_int_check =
+        (central_peak_int > left_neighbor_int) &&
+        (central_peak_int > right_neighbor_int);
+      bool sn_check =
+        (act_snt >= signal_to_noise_) &&
+        (act_snt_l1 >= signal_to_noise_) &&
+        (act_snt_r1 >= signal_to_noise_);
+      bool spacing_check =
+        (!check_spacings ||
+        ((left_to_central < spacing_difference_ * min_spacing) &&
+         (central_to_right < spacing_difference_ * min_spacing)));
+
       // look for peak cores meeting MZ and intensity/SNT criteria
-      if ((central_peak_int > left_neighbor_int) && 
-        (central_peak_int > right_neighbor_int) && 
-        (act_snt >= signal_to_noise_) && 
-        (act_snt_l1 >= signal_to_noise_) && 
-        (act_snt_r1 >= signal_to_noise_) &&
-        (!check_spacings || 
-        ((left_to_central < spacing_difference_ * min_spacing) && 
-          (central_to_right < spacing_difference_ * min_spacing))))
+      if (max_int_check && sn_check && spacing_check)
       {
         // special case: if a peak core is surrounded by more intense
         // satellite peaks (indicates oscillation rather than
