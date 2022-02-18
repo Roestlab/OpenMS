@@ -9,10 +9,10 @@ from SpectrumSettings cimport *
 
 cdef extern from "<OpenMS/KERNEL/MSSpectrum.h>" namespace "OpenMS":
 
-    cdef cppclass MSSpectrum(SpectrumSettings, RangeManager1):
+    cdef cppclass MSSpectrum(SpectrumSettings, RangeManagerMzInt):
         # wrap-inherits:
         #  SpectrumSettings
-        #  RangeManager1
+        #  RangeManagerMzInt
         #
         # wrap-doc:
         #   The representation of a 1D spectrum.
@@ -81,7 +81,7 @@ cdef extern from "<OpenMS/KERNEL/MSSpectrum.h>" namespace "OpenMS":
         Size size() nogil except + # wrap-doc:Returns the number of peaks in the spectrum
         void reserve(size_t n) nogil except + 
 
-        Peak1D& operator[](int) nogil except + # wrap-upper-limit:size()
+        Peak1D& operator[](size_t) nogil except + # wrap-upper-limit:size()
 
         void updateRanges() nogil except +
         void clear(bool clear_meta_data) nogil except + # wrap-doc:Clears all data (and meta data if clear_meta_data is true)

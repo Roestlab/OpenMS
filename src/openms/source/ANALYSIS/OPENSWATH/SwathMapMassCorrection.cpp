@@ -42,12 +42,12 @@
 #include <OpenMS/OPENSWATHALGO/DATAACCESS/SpectrumHelpers.h> // integrateWindow
 #include <OpenMS/ANALYSIS/OPENSWATH/DIAHelper.h>
 
+#include <fstream>
+
 #define SWATHMAPMASSCORRECTION_DEBUG
 
 namespace OpenMS
 {
-
-
   void findBestFeature(const OpenMS::MRMFeatureFinderScoring::MRMTransitionGroupType& transition_group, double& bestRT)
   {
     // Find the feature with the highest score
@@ -146,6 +146,7 @@ namespace OpenMS
 
     std::vector<String> trgr_ids;
     std::map<std::string, double> pep_im_map;
+    trgr_ids.reserve(transition_group_map.size());
     for (const auto& trgroup_it : transition_group_map)
     {
       trgr_ids.push_back(trgroup_it.first);
@@ -300,6 +301,11 @@ namespace OpenMS
     }
 
     if (!debug_im_file_.empty()) {os_im.close();}
+
+    if (exp_im.empty())
+    {
+      throw Exception::UnableToFit(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, "UnableToFit-LinearRegression", String("Could not fit a linear model to the data (0 points)."));
+    }
 
     // linear correction is default (none returns in the beginning of the function)
     std::vector<double> im_regression_params;

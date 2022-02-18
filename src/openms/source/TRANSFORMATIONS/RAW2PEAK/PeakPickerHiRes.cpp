@@ -29,7 +29,7 @@
 //
 // --------------------------------------------------------------------------
 // $Author: Erhan Kenar $
-// $Maintainer: Timo Sachsenberg$
+// $Maintainer: Timo Sachsenberg $
 // --------------------------------------------------------------------------
 //
 
@@ -40,7 +40,9 @@
 #include <OpenMS/KERNEL/MSChromatogram.h>
 #include <OpenMS/MATH/MISC/SplineBisection.h>
 #include <OpenMS/MATH/MISC/CubicSpline2d.h>
+#include <OpenMS/KERNEL/SpectrumHelper.h>
 
+// #define PPHIRES_DEBUG
 
 using namespace std;
 
@@ -98,14 +100,18 @@ namespace OpenMS
   void PeakPickerHiRes::pick(const MSSpectrum& input, MSSpectrum& output, std::vector<PeakBoundary>& boundaries, bool check_spacings) const
   {
     // copy meta data of the input spectrum
-    output.clear(true);
-    output.SpectrumSettings::operator=(input);
-    output.MetaInfoInterface::operator=(input);
-    output.setRT(input.getRT());
-    output.setMSLevel(input.getMSLevel());
-    output.setName(input.getName());
+    copySpectrumMeta(input, output);
     output.setType(SpectrumSettings::CENTROID);
-    pick_(input, output, boundaries, check_spacings);
+
+    int im_data_index = -1;
+    if (input.containsIMData())
+    {
+      // will throw if IM float data array is missing
+      const auto [tmp_index, im_unit] = input.getIMData();
+      im_data_index = tmp_index;
+    }
+
+    pick_(input, output, boundaries, check_spacings, im_data_index);
   }
 
   void PeakPickerHiRes::pick(const MSChromatogram& input, MSChromatogram& output, std::vector<PeakBoundary>& boundaries, bool check_spacings) const
@@ -120,12 +126,30 @@ namespace OpenMS
   }
 
   template <typename ContainerType>
-  void PeakPickerHiRes::pick_(const ContainerType& input, ContainerType& output, std::vector<PeakBoundary>& boundaries, bool check_spacings) const
+  void PeakPickerHiRes::pick_(const ContainerType& input,
+                              ContainerType& output,
+                              std::vector<PeakBoundary>& boundaries,
+                              bool check_spacings,
+                              int im_data_index) const
   {
+    OPENMS_PRECONDITION( im_data_index < 0 || input.getFloatDataArrays()[im_data_index].size() == input.size(),
+        "Ion Mobility array needs to have the same length as the m/z and intensity array.")
+
+    bool has_im = (im_data_index >= 0);
+    Size out_im_index = 0;
+    if (has_im)
+    {
+      out_im_index = output.getFloatDataArrays().size();
+      output.getFloatDataArrays().resize(output.getFloatDataArrays().size() + 1);
+      output.getFloatDataArrays()[out_im_index].setName( input.getFloatDataArrays()[im_data_index].getName() );
+    }
+
+    Size out_fwhm_index = 0;
     if (report_FWHM_)
     {
-      output.getFloatDataArrays().resize(1);
-      output.getFloatDataArrays()[0].setName( report_FWHM_as_ppm_ ? "FWHM_ppm" : "FWHM");
+      out_fwhm_index = output.getFloatDataArrays().size();
+      output.getFloatDataArrays().resize(output.getFloatDataArrays().size() + 1);
+      output.getFloatDataArrays()[out_fwhm_index].setName( report_FWHM_as_ppm_ ? "FWHM_ppm" : "FWHM");
     }
 
     // don't pick a spectrum with less than 5 data points
@@ -182,15 +206,36 @@ namespace OpenMS
         act_snt_r1 = snt.getSignalToNoise(i + 1);
       }
 
+      bool max_int_check =
+        (central_peak_int > left_neighbor_int) &&
+        (central_peak_int > right_neighbor_int);
+      bool sn_check =
+        (act_snt >= signal_to_noise_) &&
+        (act_snt_l1 >= signal_to_noise_) &&
+        (act_snt_r1 >= signal_to_noise_);
+      bool spacing_check =
+        (!check_spacings ||
+        ((left_to_central < spacing_difference_ * min_spacing) &&
+         (central_to_right < spacing_difference_ * min_spacing)));
+
+#ifdef PPHIRES_DEBUG
+      std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+      std::cout << " Looking at peak " << i << " " << input[i] << std::endl;
+      std::cout << " Checking " << max_int_check << sn_check << spacing_check << std::endl;
+#endif
+
+      // special case (timsTOF data): peaks that only have a leading flank on one side and a large spacing on the other side
+      if (check_spacings &&
+          ((central_to_right >= spacing_difference_ * min_spacing &&
+          central_peak_int > left_neighbor_int) ||
+          (left_to_central >= spacing_difference_ * min_spacing &&
+           central_peak_int > right_neighbor_int)))
+      {
+        spacing_check = true; max_int_check = true;
+      }
+
       // look for peak cores meeting MZ and intensity/SNT criteria
-      if ((central_peak_int > left_neighbor_int) && 
-        (central_peak_int > right_neighbor_int) && 
-        (act_snt >= signal_to_noise_) && 
-        (act_snt_l1 >= signal_to_noise_) && 
-        (act_snt_r1 >= signal_to_noise_) &&
-        (!check_spacings || 
-        ((left_to_central < spacing_difference_ * min_spacing) && 
-          (central_to_right < spacing_difference_ * min_spacing))))
+      if (max_int_check && sn_check && spacing_check)
       {
         // special case: if a peak core is surrounded by more intense
         // satellite peaks (indicates oscillation rather than
@@ -219,19 +264,26 @@ namespace OpenMS
           continue;
         }
 
+#ifdef PPHIRES_DEBUG
+      std::cout << "  => Creating picked peak from seed. " << std::endl;
+#endif
+
         std::map<double, double> peak_raw_data;
+        double weighted_im = 0;
 
         peak_raw_data[central_peak_mz] = central_peak_int;
-        peak_raw_data[left_neighbor_mz] = left_neighbor_int;
-        peak_raw_data[right_neighbor_mz] = right_neighbor_int;
+        if (has_im)
+        {
+          weighted_im += input.getFloatDataArrays()[im_data_index][i] * input[i].getIntensity();
+        }
 
         // peak core found, now extend it
         // to the left
-        Size k = 2;
+        Size k = 1;
 
         bool previous_zero_left(false); // no need to extend peak if previous intensity was zero
         Size missing_left(0);
-        Size left_boundary(i - 1); // index of the left boundary for the spline interpolation
+        Size left_boundary(i); // index of the left boundary for the spline interpolation
 
         while ((k <= i) && // prevent underflow
           (i - k + 1 > 0) && 
@@ -253,6 +305,7 @@ namespace OpenMS
             (peak_raw_data.begin()->first - input[i - k].getMZ() < spacing_difference_ * min_spacing)))
           {
             peak_raw_data[input[i - k].getMZ()] = input[i - k].getIntensity();
+            if (has_im) weighted_im += input.getFloatDataArrays()[im_data_index][i - k] * input[i - k].getIntensity();
           }
           else
           {
@@ -260,20 +313,24 @@ namespace OpenMS
             if (missing_left <= missing_)
             {
               peak_raw_data[input[i - k].getMZ()] = input[i - k].getIntensity();
+              if (has_im) weighted_im += input.getFloatDataArrays()[im_data_index][i - k] * input[i - k].getIntensity();
             }
           }
 
           previous_zero_left = (input[i - k].getIntensity() == 0);
           left_boundary = i - k;
           ++k;
+#ifdef PPHIRES_DEBUG
+      std::cout << "  .. extended to the left: " << left_boundary << " : " << input[left_boundary] << std::endl;
+#endif
         }
 
         // to the right
-        k = 2;
+        k = 1;
 
         bool previous_zero_right(false); // no need to extend peak if previous intensity was zero
         Size missing_right(0);
-        Size right_boundary(i+1); // index of the right boundary for the spline interpolation
+        Size right_boundary(i); // index of the right boundary for the spline interpolation
 
         while ((i + k < input.size()) && 
           !previous_zero_right && 
@@ -294,6 +351,7 @@ namespace OpenMS
             (input[i + k].getMZ() - peak_raw_data.rbegin()->first < spacing_difference_ * min_spacing)))
           {
             peak_raw_data[input[i + k].getMZ()] = input[i + k].getIntensity();
+            if (has_im) weighted_im += input.getFloatDataArrays()[im_data_index][i + k] * input[i + k].getIntensity();
           }
           else
           {
@@ -301,12 +359,29 @@ namespace OpenMS
             if (missing_right <= missing_)
             {
               peak_raw_data[input[i + k].getMZ()] = input[i + k].getIntensity();
+              if (has_im) weighted_im += input.getFloatDataArrays()[im_data_index][i + k] * input[i + k].getIntensity();
             }
           }
 
           previous_zero_right = (input[i + k].getIntensity() == 0);
           right_boundary = i + k;
           ++k;
+#ifdef PPHIRES_DEBUG
+      std::cout << "  .. extended to the right: " << right_boundary << " : " << input[right_boundary] << std::endl;
+#endif
+        }
+
+        // Fix up spline for the special case of a leading flank peak, we
+        // simply "mirror" the peak on the other side
+        if (right_boundary == i)
+        {
+          right_neighbor_mz = central_peak_mz + (central_peak_mz - left_neighbor_mz);
+          peak_raw_data[right_neighbor_mz] = left_neighbor_int;
+        }
+        if (left_boundary == i)
+        {
+          left_neighbor_mz = central_peak_mz - (right_neighbor_mz - central_peak_mz);
+          peak_raw_data[left_neighbor_mz] = right_neighbor_int;
         }
 
         // skip if the minimal number of 3 points for fitting is not reached
@@ -382,17 +457,33 @@ namespace OpenMS
           }
           const double fwhm_right_mz = mz_mid;
           const double fwhm_absolute = fwhm_right_mz - fwhm_left_mz;
-          output.getFloatDataArrays()[0].push_back( report_FWHM_as_ppm_ ? fwhm_absolute / max_peak_mz  * 1e6 : fwhm_absolute);
+          output.getFloatDataArrays()[out_fwhm_index].push_back( report_FWHM_as_ppm_ ? fwhm_absolute / max_peak_mz  * 1e6 : fwhm_absolute);
         } // FWHM
+
+        // compute the intensity-weighted mean ion mobility
+        PeakBoundary peak_boundary;
+        peak_boundary.im_average = -1;
+        if (has_im)
+        {
+          double total_intensity(0);
+          for (const auto& t : peak_raw_data) {total_intensity += t.second;}
+          output.getFloatDataArrays()[out_im_index].push_back(weighted_im / total_intensity);
+          peak_boundary.im_average = weighted_im / total_intensity;
+          // TODO: this may misrepresent what is going on, maybe we report im
+          // using the PeakBoundary object and the user has to specifically
+          // request ion mobility averages?
+        }
 
         // save picked peak into output spectrum
         typename ContainerType::PeakType peak;
-        PeakBoundary peak_boundary;
         peak.setMZ(max_peak_mz);
         peak.setIntensity(max_peak_int);
         peak_boundary.mz_min = input[left_boundary].getMZ();
         peak_boundary.mz_max = input[right_boundary].getMZ();
         output.push_back(peak);
+#ifdef PPHIRES_DEBUG
+      std::cout << "  => Created peak: " << peak << std::endl;
+#endif
 
         boundaries.push_back(peak_boundary);
 

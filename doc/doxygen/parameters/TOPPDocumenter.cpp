@@ -46,8 +46,6 @@
 #include <fstream>
 #include <sstream>
 
-#include <boost/algorithm/string.hpp>
-
 using namespace std;
 using namespace OpenMS;
 using namespace Internal;
@@ -181,7 +179,7 @@ void convertINI2HTML(const Param& p, ostream& os)
 
     case ParamValue::STRING_VALUE:
     case ParamValue::STRING_LIST:
-      if (it->valid_strings.size() != 0)
+      if (!it->valid_strings.empty())
       {
         restrictions.concatenate(it->valid_strings.begin(), it->valid_strings.end(), ",");
       }

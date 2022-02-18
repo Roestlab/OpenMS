@@ -224,7 +224,7 @@ namespace OpenMS::Internal
       throw Exception::NotImplemented(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION);
     }
 
-    void XMLHandler::checkUniqueIdentifiers_(const std::vector<ProteinIdentification>& prot_ids)
+    void XMLHandler::checkUniqueIdentifiers_(const std::vector<ProteinIdentification>& prot_ids) const
     {
       std::set<String> s;
       for (const auto& p : prot_ids)
@@ -279,9 +279,15 @@ namespace OpenMS::Internal
         else if (d.valueType() == DataValue::STRING_LIST)
         {
           os << "stringList";
-          // concatenate manually, as operator<< inserts spaces, which are bad
-          // for reconstructing the list
-          val = "[" + writeXMLEscape(ListUtils::concatenate(d.toStringList(), ",")) + "]";
+          // List elements are separated by comma. In the rare case of comma inside individual strings
+          // we replace them by an escape symbol '\\|'. 
+          // This allows distinguishing commas as element separator and normal string character and reconstruct the list.
+          StringList sl = d.toStringList();
+          for (String& s : sl)
+          {
+            if (s.has(',')) s.substitute(",", "\\|");
+          }
+          val = "[" + writeXMLEscape(ListUtils::concatenate(sl, ",")) + "]";
         }
         else
         {
