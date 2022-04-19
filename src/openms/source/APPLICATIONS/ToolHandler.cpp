@@ -61,6 +61,7 @@ namespace OpenMS
     tools_map["FalseDiscoveryRate"] = Internal::ToolDescription("FalseDiscoveryRate", "ID Processing");
     tools_map["FeatureFinderCentroided"] = Internal::ToolDescription("FeatureFinderCentroided", "Quantitation");
     tools_map["FeatureFinderIdentification"] = Internal::ToolDescription("FeatureFinderIdentification", "Quantitation");
+    tools_map["FeatureFinderIonMobility"] = Internal::ToolDescription("FeatureFinderIonMobility", "Quantitation");
     tools_map["FeatureFinderIsotopeWavelet"] = Internal::ToolDescription("FeatureFinderIsotopeWavelet", "Quantitation");
     tools_map["FeatureFinderMetabo"] = Internal::ToolDescription("FeatureFinderMetabo", "Quantitation");
     tools_map["FeatureFinderMultiplex"] = Internal::ToolDescription("FeatureFinderMultiplex", "Quantitation");
@@ -84,6 +85,7 @@ namespace OpenMS
     tools_map["IDPosteriorErrorProbability"] = Internal::ToolDescription("IDPosteriorErrorProbability", "ID Processing");
     tools_map["IDRipper"] = Internal::ToolDescription("IDRipper", "File Handling");
     tools_map["IDRTCalibration"] = Internal::ToolDescription("IDRTCalibration", "ID Processing");
+    tools_map["IonMobilityBinner"] = Internal::ToolDescription("IonMobilityBinner", "File Handling");
     tools_map["IsobaricAnalyzer"] = Internal::ToolDescription("IsobaricAnalyzer", "Quantitation");
     tools_map["InclusionExclusionListCreator"] = Internal::ToolDescription("InclusionExclusionListCreator", "Targeted Experiments");
     tools_map["InternalCalibration"] = Internal::ToolDescription("InternalCalibration", "Signal processing and preprocessing");

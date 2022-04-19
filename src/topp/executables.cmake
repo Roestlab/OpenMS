@@ -18,6 +18,7 @@ ExternalCalibration
 FalseDiscoveryRate
 FeatureFinderCentroided
 FeatureFinderIdentification
+FeatureFinderIonMobility
 FeatureFinderIsotopeWavelet
 FeatureFinderMetabo
 FeatureFinderMRM
@@ -44,6 +45,7 @@ IDRipper
 IDRTCalibration
 InclusionExclusionListCreator
 InternalCalibration
+IonMobilityBinner
 IsobaricAnalyzer
 LuciphorAdapter
 MapAlignerIdentification

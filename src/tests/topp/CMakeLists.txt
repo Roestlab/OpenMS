@@ -258,6 +258,24 @@ add_test("TOPP_MassTraceExtractor_2_out" ${DIFF} -whitelist "id=" -in1 MassTrace
 set_tests_properties("TOPP_MassTraceExtractor_2_out" PROPERTIES DEPENDS "TOPP_MassTraceExtractor_2")
 
 #------------------------------------------------------------------------------
+# IonMobilityBinner test
+add_test("TOPP_IonMobilityBinner_1" ${TOPP_BIN_PATH}/IonMobilityBinner -test -in ${DATA_DIR_TOPP}/IonMobilityBinner_1_input.mzML -out_prefix IonMobilityBinner_1_output -num_bins 3 -use_offset)
+add_test("TOPP_IonMobilityBinner_1_out1" ${DIFF} -in1 IonMobilityBinner_1_output-1-1.mzML -in2 ${DATA_DIR_TOPP}/IonMobilityBinner_1_output1.mzML)
+set_tests_properties("TOPP_IonMobilityBinner_1_out1" PROPERTIES DEPENDS "TOPP_IonMobilityBinner_1")
+add_test("TOPP_IonMobilityBinner_1_out2" ${DIFF} -in1 IonMobilityBinner_1_output-1-2.mzML -in2 ${DATA_DIR_TOPP}/IonMobilityBinner_1_output2.mzML)
+set_tests_properties("TOPP_IonMobilityBinner_1_out2" PROPERTIES DEPENDS "TOPP_IonMobilityBinner_1")
+add_test("TOPP_IonMobilityBinner_1_out3" ${DIFF} -in1 IonMobilityBinner_1_output-1-3.mzML -in2 ${DATA_DIR_TOPP}/IonMobilityBinner_1_output3.mzML)
+set_tests_properties("TOPP_IonMobilityBinner_1_out3" PROPERTIES DEPENDS "TOPP_IonMobilityBinner_1")
+add_test("TOPP_IonMobilityBinner_1_out4" ${DIFF} -in1 IonMobilityBinner_1_output-2-1.mzML -in2 ${DATA_DIR_TOPP}/IonMobilityBinner_1_output4.mzML)
+set_tests_properties("TOPP_IonMobilityBinner_1_out4" PROPERTIES DEPENDS "TOPP_IonMobilityBinner_1")
+add_test("TOPP_IonMobilityBinner_1_out5" ${DIFF} -in1 IonMobilityBinner_1_output-2-2.mzML -in2 ${DATA_DIR_TOPP}/IonMobilityBinner_1_output5.mzML)
+set_tests_properties("TOPP_IonMobilityBinner_1_out5" PROPERTIES DEPENDS "TOPP_IonMobilityBinner_1")
+add_test("TOPP_IonMobilityBinner_1_out6" ${DIFF} -in1 IonMobilityBinner_1_output-2-3.mzML -in2 ${DATA_DIR_TOPP}/IonMobilityBinner_1_output6.mzML)
+set_tests_properties("TOPP_IonMobilityBinner_1_out6" PROPERTIES DEPENDS "TOPP_IonMobilityBinner_1")
+add_test("TOPP_IonMobilityBinner_1_out7" ${DIFF} -in1 IonMobilityBinner_1_output-2-4.mzML -in2 ${DATA_DIR_TOPP}/IonMobilityBinner_1_output7.mzML)
+set_tests_properties("TOPP_IonMobilityBinner_1_out7" PROPERTIES DEPENDS "TOPP_IonMobilityBinner_1")
+
+#------------------------------------------------------------------------------
 # FeatureFinderMetabo test
 add_test("TOPP_FeatureFinderMetabo_1" ${TOPP_BIN_PATH}/FeatureFinderMetabo -test -ini ${DATA_DIR_TOPP}/FeatureFinderMetabo.ini -in ${DATA_DIR_TOPP}/FeatureFinderMetabo_1_input.mzML -out FeatureFinderMetabo_1.tmp)
 add_test("TOPP_FeatureFinderMetabo_1_out" ${DIFF} -whitelist "id=" -in1 FeatureFinderMetabo_1.tmp -in2 ${DATA_DIR_TOPP}/FeatureFinderMetabo_1_output.featureXML)
